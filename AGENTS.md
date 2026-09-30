@@ -46,6 +46,8 @@
 - Planeje o histórico desde o início: após o planejamento, feche uma primeira etapa pequena com o esqueleto do projeto, `.gitignore`, `README.md` inicial e arquivos públicos necessários. Verifique e revise essa etapa, oriente o primeiro commit e crie/publique o repositório no GitHub antes de acumular funcionalidades.
 - Antes de iniciar cada nova funcionalidade, indique qual parte verificável será entregue e quando ocorrerão revisão, teste e commit. Após concluí-la, oriente commit, push, PR e merge conforme o fluxo; não deixe várias funcionalidades prontas sem registrar a evolução no Git.
 - O README inicial deve descrever apenas o que já existe. Documentos privados em `docs/` e segredos em `.env` não entram nos commits; `AGENTS.md` e `.env.example` podem ser versionados.
+- Para uma funcionalidade concluída, confirme a branch, use git add . na raiz quando todos os arquivos alterados pertencem à entrega, confira uma vez com git status --short, faça o commit e depois o push. Use git add com caminhos específicos quando o commit incluir apenas parte das alterações.
+- Use git diff e verificações adicionais de Git quando houver dúvida, conflito, arquivo inesperado ou revisão específica; não os repita como rotina. Após o push de uma branch de trabalho, oriente a abertura e revisão do PR antes do merge.
 - Use `git pull` como padrão para atualizar branches que acompanham o remoto. Se houver divergência ou conflito, analise antes de continuar.
 - Siga o fluxo: implementar, testar, revisar, commit, push da branch, PR, revisão e merge. Não invente histórico nem publique verificações não realizadas.
 - Ao orientar um PR, forneça título, descrição pronta, branch de origem e branch de destino.
