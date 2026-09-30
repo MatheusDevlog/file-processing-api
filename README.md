@@ -2,7 +2,7 @@
 
 API REST para receber arquivos CSV ou JSON, validar registros e disponibilizar o resultado do processamento.
 
-O projeto está na etapa inicial: a estrutura Django e o PostgreSQL estão configurados. Os endpoints de upload e consulta ainda não foram implementados.
+O projeto está na etapa inicial: a estrutura Django e o PostgreSQL estão configurados. O modelo `ProcessingJob` registra o arquivo, o formato, o estado, o resultado e o motivo de falha. Os endpoints de upload e consulta ainda não foram implementados.
 
 ## Tecnologias
 
@@ -30,3 +30,13 @@ python manage.py check
 ```
 
 O Django roda na venv local; o PostgreSQL roda no contêiner Docker. O arquivo `.env` contém valores privados e não é versionado.
+
+## Testes
+
+Com a venv ativada, o PostgreSQL iniciado e as variáveis do `.env` carregadas, execute:
+
+```bash
+python -m pytest -q
+```
+
+Os testes atuais verificam a criação de um processamento pendente e a rejeição de um formato inválido pelo modelo.
