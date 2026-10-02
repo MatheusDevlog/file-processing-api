@@ -1,6 +1,7 @@
 import pytest
 
 from file_processing.models import ProcessingJob
+from file_processing.processing import validar_registro_cliente
 from django.core.exceptions import ValidationError
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.urls import reverse
@@ -131,3 +132,17 @@ def test_upload_rejeita_arquivo_ausente_ou_vazio(tmp_path, settings, case):
     assert 'file' in response.data
     assert ProcessingJob.objects.count() == 0
     assert list(tmp_path.iterdir()) == []
+
+
+@pytest.mark.parametrize(
+    'registro, campos_esperados',
+    [
+        ({'nome': 'Ana', 'email': 'ana@example.com'}, []),
+        ({'nome': ' ', 'email': 'ana@example.com'}, ['nome']),
+        ({'nome': 'Ana', 'email': ' '}, ['email']),
+        ({'nome': 'Ana'}, ['email']),
+        ({'nome': 42, 'email': None}, ['nome', 'email']),
+    ],
+)
+def test_valida_campos_obrigatorios_do_cliente(registro, campos_esperados):
+    assert validar_registro_cliente(registro) == campos_esperados
