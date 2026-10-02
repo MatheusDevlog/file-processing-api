@@ -39,7 +39,7 @@ python manage.py runserver
 
 ## Envio de arquivo
 
-Envie uma requisição `POST` para `http://127.0.0.1:8000/api/processamentos/` com corpo `multipart/form-data`. O campo deve se chamar `file` e conter um arquivo CSV ou JSON. No Bruno, selecione **Body → Multipart Form**, defina `file` como tipo **File** e escolha o arquivo. O cliente configura o cabeçalho `Content-Type`.
+Envie uma requisição `POST` para `http://127.0.0.1:8000/api/processamentos/` com corpo `multipart/form-data`. O campo deve se chamar `file` e conter um arquivo CSV ou JSON. Na extensão Bruno API Client, selecione **Body → Multipart Form**, defina `file` como tipo **File** e escolha o arquivo. O cliente configura o cabeçalho `Content-Type`.
 
 O arquivo precisa ter uma extensão `.csv` ou `.json`, não pode estar vazio e deve ter no máximo 1 MiB. A extensão é verificada pelo nome do arquivo; o conteúdo dos registros ainda não é validado.
 
