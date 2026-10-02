@@ -2,7 +2,7 @@
 
 API REST para receber arquivos CSV ou JSON, validar registros e disponibilizar o resultado do processamento.
 
-O projeto está na etapa inicial: a estrutura Django e o PostgreSQL estão configurados. O modelo `ProcessingJob` registra o arquivo, o formato, o estado, o resultado e o motivo de falha. Os endpoints de upload e consulta ainda não foram implementados.
+O upload de arquivos está disponível. Cada envio cria um `ProcessingJob` com estado `pending`. O processamento do conteúdo e a consulta do resultado ainda não foram implementados.
 
 ## Tecnologias
 
@@ -31,6 +31,29 @@ python manage.py check
 
 O Django roda na venv local; o PostgreSQL roda no contêiner Docker. O arquivo `.env` contém valores privados e não é versionado.
 
+Para iniciar a API no mesmo terminal, execute:
+
+```bash
+python manage.py runserver
+```
+
+## Envio de arquivo
+
+Envie uma requisição `POST` para `http://127.0.0.1:8000/api/processamentos/` com corpo `multipart/form-data`. O campo deve se chamar `file` e conter um arquivo CSV ou JSON. No Bruno, selecione **Body → Multipart Form**, defina `file` como tipo **File** e escolha o arquivo. O cliente configura o cabeçalho `Content-Type`.
+
+O arquivo precisa ter uma extensão `.csv` ou `.json`, não pode estar vazio e deve ter no máximo 1 MiB. A extensão é verificada pelo nome do arquivo; o conteúdo dos registros ainda não é validado.
+
+Um envio aceito retorna `201 Created`:
+
+```json
+{
+  "id": "efeb1ff5-6d41-4b10-a948-cdd4f263c6e1",
+  "status": "pending"
+}
+```
+
+O identificador muda a cada envio. O arquivo é salvo em `media/uploads/`, e o registro do processamento fica no PostgreSQL. Arquivo ausente, vazio, com extensão não aceita ou acima do limite recebe `400 Bad Request`, sem criar o processamento. Para testar arquivo ausente no Bruno, selecione **No Body**.
+
 ## Testes
 
 Com a venv ativada, o PostgreSQL iniciado e as variáveis do `.env` carregadas, execute:
@@ -39,4 +62,4 @@ Com a venv ativada, o PostgreSQL iniciado e as variáveis do `.env` carregadas, 
 python -m pytest -q
 ```
 
-Os testes atuais verificam a criação de um processamento pendente e a rejeição de um formato inválido pelo modelo.
+Os testes cobrem o modelo, uploads CSV e JSON e a rejeição de extensão inválida, arquivo acima do limite, ausente ou vazio.
