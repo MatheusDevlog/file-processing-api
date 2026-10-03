@@ -1,7 +1,8 @@
 import pytest
 
+from io import BytesIO
 from file_processing.models import ProcessingJob
-from file_processing.processing import validar_registro_cliente
+from file_processing.processing import ler_registros_csv, validar_registro_cliente
 from django.core.exceptions import ValidationError
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.urls import reverse
@@ -146,3 +147,32 @@ def test_upload_rejeita_arquivo_ausente_ou_vazio(tmp_path, settings, case):
 )
 def test_valida_campos_obrigatorios_do_cliente(registro, campos_esperados):
     assert validar_registro_cliente(registro) == campos_esperados
+
+
+def test_le_registros_csv():
+    arquivo = BytesIO(
+        b'nome,email\n'
+        b'Ana,ana@example.com\n'
+        b'Bia,bia@example.com\n'
+    )
+
+    registros = ler_registros_csv(arquivo)
+
+    assert registros == [
+        {'nome': 'Ana', 'email': 'ana@example.com'},
+        {'nome': 'Bia', 'email': 'bia@example.com'},
+    ]
+
+
+@pytest.mark.parametrize(
+    'conteudo',
+    [
+        b'nome,telefone\nAna,123\n',
+        b'\n',
+    ],
+)
+def test_rejeita_csv_sem_colunas_obrigatorias(conteudo):
+    arquivo = BytesIO(conteudo)
+
+    with pytest.raises(ValueError, match='CSV deve conter as colunas nome e email.'):
+        ler_registros_csv(arquivo)
