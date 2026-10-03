@@ -2,7 +2,11 @@ import pytest
 
 from io import BytesIO
 from file_processing.models import ProcessingJob
-from file_processing.processing import ler_registros_csv, validar_registro_cliente
+from file_processing.processing import (
+    ler_registros_csv,
+    ler_registros_json,
+    validar_registro_cliente,
+)
 from django.core.exceptions import ValidationError
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.urls import reverse
@@ -176,3 +180,25 @@ def test_rejeita_csv_sem_colunas_obrigatorias(conteudo):
 
     with pytest.raises(ValueError, match='CSV deve conter as colunas nome e email.'):
         ler_registros_csv(arquivo)
+
+
+def test_le_registros_json():
+    arquivo = BytesIO(b'[{"nome": "Ana", "email": "ana@example.com"}]')
+
+    registros = ler_registros_json(arquivo)
+
+    assert registros == [{'nome': 'Ana', 'email': 'ana@example.com'}]
+
+
+@pytest.mark.parametrize(
+    'conteudo, mensagem',
+    [
+        (b'{"nome": "Ana"}', 'lista de registros'),
+        (b'[{"nome": "Ana"}, "Bia"]', 'deve ser um objeto'),
+    ],
+)
+def test_rejeita_json_com_estrutura_invalida(conteudo, mensagem):
+    arquivo = BytesIO(conteudo)
+
+    with pytest.raises(ValueError, match=mensagem):
+        ler_registros_json(arquivo)

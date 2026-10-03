@@ -1,4 +1,5 @@
 import csv
+import json
 from io import StringIO
 
 
@@ -22,3 +23,18 @@ def ler_registros_csv(arquivo):
     if 'nome' not in colunas or 'email' not in colunas:
         raise ValueError('O CSV deve conter as colunas nome e email.')
     return list(leitor)
+
+
+def ler_registros_json(arquivo):
+    arquivo.seek(0)
+    conteudo = arquivo.read().decode('utf-8-sig')
+    registros = json.loads(conteudo)
+
+    if not isinstance(registros, list):
+        raise ValueError('O JSON deve conter uma lista de registros.')
+
+    for registro in registros:
+        if not isinstance(registro, dict):
+            raise ValueError('Cada registro do JSON deve ser um objeto.')
+
+    return registros
