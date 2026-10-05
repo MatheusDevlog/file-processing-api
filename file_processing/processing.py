@@ -61,3 +61,16 @@ def resumir_registros_clientes(registros):
         'invalidos': invalidos,
         'erros': erros,
     }
+
+
+def processar_arquivo_clientes(arquivo, formato):
+    if formato == 'csv':
+        registros = ler_registros_csv(arquivo)
+
+    elif formato == 'json':
+        registros = ler_registros_json(arquivo)
+
+    else:
+        raise ValueError('Formato de arquivo não suportado.')
+
+    return resumir_registros_clientes(registros)

@@ -5,6 +5,7 @@ from file_processing.models import ProcessingJob
 from file_processing.processing import (
     ler_registros_csv,
     ler_registros_json,
+    processar_arquivo_clientes,
     resumir_registros_clientes,
     validar_registro_cliente,
 )
@@ -223,3 +224,36 @@ def test_resume_registros_validos_e_invalidos():
             {'registro': 3, 'campos_invalidos': ['nome', 'email']},
         ],
     }
+
+
+@pytest.mark.parametrize(
+    'formato, conteudo',
+    [
+        ('csv', b'nome,email\nAna,ana@example.com\nBia,\n'),
+        (
+            'json',
+            b'[{"nome": "Ana", "email": "ana@example.com"},'
+            b'{"nome": "Bia", "email": ""}]',
+        ),
+    ],
+)
+def test_processa_arquivos_clientes(formato, conteudo):
+    arquivo = BytesIO(conteudo)
+
+    resumo = processar_arquivo_clientes(arquivo, formato)
+
+    assert resumo == {
+        'total': 2,
+        'validos': 1,
+        'invalidos': 1,
+        'erros': [
+            {'registro': 2, 'campos_invalidos': ['email']},
+        ],
+    }
+
+
+def test_rejeita_formato_de_arquivo_nao_suportado():
+    arquivo = BytesIO(b'conteudo')
+
+    with pytest.raises(ValueError, match='Formato de arquivo não suportado'):
+        processar_arquivo_clientes(arquivo, 'txt')
