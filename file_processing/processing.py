@@ -2,6 +2,8 @@ import csv
 import json
 from io import StringIO
 
+from file_processing.models import ProcessingJob
+
 
 def validar_registro_cliente(registro):
     campos_invalidos = []
@@ -74,3 +76,18 @@ def processar_arquivo_clientes(arquivo, formato):
         raise ValueError('Formato de arquivo não suportado.')
 
     return resumir_registros_clientes(registros)
+
+
+def executar_processamento(job):
+    job.status = ProcessingJob.Status.PROCESSING
+    job.save(update_fields=['status', 'updated_at'])
+
+    with job.original_file.open('rb') as arquivo:
+        resultado = processar_arquivo_clientes(arquivo, job.file_format)
+
+    job.result = resultado
+    job.error_message = ''
+    job.status = ProcessingJob.Status.COMPLETED
+    job.save(update_fields=['result', 'error_message', 'status', 'updated_at'])
+
+    return job

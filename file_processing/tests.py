@@ -3,6 +3,7 @@ import pytest
 from io import BytesIO
 from file_processing.models import ProcessingJob
 from file_processing.processing import (
+    executar_processamento,
     ler_registros_csv,
     ler_registros_json,
     processar_arquivo_clientes,
@@ -257,3 +258,31 @@ def test_rejeita_formato_de_arquivo_nao_suportado():
 
     with pytest.raises(ValueError, match='Formato de arquivo não suportado'):
         processar_arquivo_clientes(arquivo, 'txt')
+
+
+@pytest.mark.django_db
+def test_executa_processamento_e_salva_resultado(tmp_path, settings):
+    settings.MEDIA_ROOT = tmp_path
+    arquivo = SimpleUploadedFile(
+        'clientes.csv',
+        b'nome,email\nAna,ana@example.com\nBia,\n',
+    )
+    job = ProcessingJob.objects.create(
+        original_file=arquivo,
+        original_name=arquivo.name,
+        file_format=ProcessingJob.FileFormat.CSV,
+    )
+
+    executar_processamento(job)
+    job.refresh_from_db()
+
+    assert job.status == ProcessingJob.Status.COMPLETED
+    assert job.result == {
+        'total': 2,
+        'validos': 1,
+        'invalidos': 1,
+        'erros': [
+            {'registro': 2, 'campos_invalidos': ['email']},
+        ],
+    }
+    assert job.error_message == ''
