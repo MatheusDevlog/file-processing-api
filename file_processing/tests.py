@@ -5,6 +5,7 @@ from file_processing.models import ProcessingJob
 from file_processing.processing import (
     ler_registros_csv,
     ler_registros_json,
+    resumir_registros_clientes,
     validar_registro_cliente,
 )
 from django.core.exceptions import ValidationError
@@ -202,3 +203,23 @@ def test_rejeita_json_com_estrutura_invalida(conteudo, mensagem):
 
     with pytest.raises(ValueError, match=mensagem):
         ler_registros_json(arquivo)
+
+
+def test_resume_registros_validos_e_invalidos():
+    registros = [
+        {'nome': 'Ana', 'email': 'ana@example.com'},
+        {'nome': ' ', 'email': 'bia@example.com'},
+        {'nome': '', 'email': ''},
+    ]
+
+    resumo = resumir_registros_clientes(registros)
+
+    assert resumo == {
+        'total': 3,
+        'validos': 1,
+        'invalidos': 2,
+        'erros': [
+            {'registro': 2, 'campos_invalidos': ['nome']},
+            {'registro': 3, 'campos_invalidos': ['nome', 'email']},
+        ],
+    }

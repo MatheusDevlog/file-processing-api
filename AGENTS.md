@@ -13,7 +13,7 @@
 - `config/urls.py` inclui `file_processing/urls.py`. A rota `POST /api/processamentos/` chega à view em `file_processing/views.py`, que usa `MultiPartParser` para receber o formulário com o arquivo.
 - `file_processing/serializers.py` exige o campo `file`, aceita apenas nomes terminados em `.csv` ou `.json` e limita o arquivo a 1 MiB. O campo também rejeita arquivos vazios. A verificação da extensão não confirma o conteúdo ou o tipo real do arquivo.
 - A view salva o arquivo em `media/uploads/` e cria no PostgreSQL um `ProcessingJob` com estado `pending`; responde `201` com `id` e `status`. `file_processing/models.py` define o UUID, os dados do arquivo, os estados `pending`, `processing`, `completed` e `failed`, o resultado JSON e a mensagem de erro. Mudanças nesse esquema exigem migration em `file_processing/migrations/`.
-- `file_processing/processing.py` contém uma função para identificar campos obrigatórios ausentes, vazios ou que não sejam texto em um registro de cliente. Ela ainda não está ligada ao upload. Leitura e processamento de CSV/JSON, transições de estado e consulta do resultado ainda não existem; não os apresente como funcionalidades prontas.
+- `file_processing/processing.py` contém a validação de campos obrigatórios e funções isoladas de leitura de CSV e JSON. Essas funções ainda não estão ligadas ao upload. O fluxo que processa os registros, altera o estado do job e permite consultar o resultado ainda não existe; não o apresente como funcionalidade pronta.
 
 ## Convenções de implementação
 

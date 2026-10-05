@@ -38,3 +38,26 @@ def ler_registros_json(arquivo):
             raise ValueError('Cada registro do JSON deve ser um objeto.')
 
     return registros
+
+
+def resumir_registros_clientes(registros):
+    erros = []
+
+    for numero, registro in enumerate(registros, start=1):
+        campos_invalidos = validar_registro_cliente(registro)
+
+        if campos_invalidos:
+            erros.append({
+                'registro': numero,
+                'campos_invalidos': campos_invalidos,
+            })
+
+    total = len(registros)
+    invalidos = len(erros)
+
+    return {
+        'total': total,
+        'validos': total - invalidos,
+        'invalidos': invalidos,
+        'erros': erros,
+    }
