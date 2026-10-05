@@ -286,3 +286,24 @@ def test_executa_processamento_e_salva_resultado(tmp_path, settings):
         ],
     }
     assert job.error_message == ''
+
+
+@pytest.mark.django_db
+def test_salva_falha_quando_csv_nao_tem_colunas_obrigatorias(tmp_path, settings):
+    settings.MEDIA_ROOT = tmp_path
+    arquivo = SimpleUploadedFile(
+        'clientes.csv',
+        b'nome,telefone\nAna,123\n'
+    )
+    job = ProcessingJob.objects.create(
+        original_file=arquivo,
+        original_name=arquivo.name,
+        file_format=ProcessingJob.FileFormat.CSV,
+    )
+
+    executar_processamento(job)
+    job.refresh_from_db()
+
+    assert job.status == ProcessingJob.Status.FAILED
+    assert job.result is None
+    assert job.error_message == 'O CSV deve conter as colunas nome e email.'

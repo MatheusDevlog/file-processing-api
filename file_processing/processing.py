@@ -82,8 +82,16 @@ def executar_processamento(job):
     job.status = ProcessingJob.Status.PROCESSING
     job.save(update_fields=['status', 'updated_at'])
 
-    with job.original_file.open('rb') as arquivo:
-        resultado = processar_arquivo_clientes(arquivo, job.file_format)
+    try:
+        with job.original_file.open('rb') as arquivo:
+            resultado = processar_arquivo_clientes(arquivo, job.file_format)
+
+    except ValueError as erro:
+        job.result = None
+        job.error_message = str(erro)
+        job.status = ProcessingJob.Status.FAILED
+        job.save(update_fields=['result', 'error_message', 'status', 'updated_at'])
+        return job
 
     job.result = resultado
     job.error_message = ''
