@@ -18,13 +18,13 @@ class ProcessingJobUploadView(APIView):
         uploaded_file = serializer.validated_data['file']
         file_format = Path(uploaded_file.name).suffix.lower().lstrip('.')
 
-        job = ProcessingJob.objects.create(
+        processamento = ProcessingJob.objects.create(
             original_file=uploaded_file,
             original_name=uploaded_file.name,
             file_format=file_format,
         )
 
         return Response(
-            {'id': str(job.id), 'status': job.status},
+            {'id': str(processamento.id), 'status': processamento.status},
             status=status.HTTP_201_CREATED
         )

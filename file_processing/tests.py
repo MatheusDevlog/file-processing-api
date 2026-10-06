@@ -18,30 +18,30 @@ from rest_framework.test import APIClient
 
 @pytest.mark.django_db
 def test_cria_processamento_pendente():
-    job = ProcessingJob.objects.create(
+    processamento = ProcessingJob.objects.create(
         original_file='uploads/clientes.csv',
         original_name='clientes.csv',
         file_format=ProcessingJob.FileFormat.CSV,
     )
 
-    saved_job = ProcessingJob.objects.get(pk=job.pk)
+    processamento_salvo = ProcessingJob.objects.get(pk=processamento.pk)
 
-    assert saved_job.status == ProcessingJob.Status.PENDING
-    assert saved_job.original_name == 'clientes.csv'
-    assert saved_job.result is None
-    assert saved_job.error_message == ''
+    assert processamento_salvo.status == ProcessingJob.Status.PENDING
+    assert processamento_salvo.original_name == 'clientes.csv'
+    assert processamento_salvo.result is None
+    assert processamento_salvo.error_message == ''
 
 
 @pytest.mark.django_db
 def test_rejeita_formato_invalido():
-    job = ProcessingJob(
+    processamento = ProcessingJob(
         original_file='uploads/clientes.txt',
         original_name='clientes.txt',
         file_format='txt',
     )
 
     with pytest.raises(ValidationError) as error:
-        job.full_clean()
+        processamento.full_clean()
 
     assert 'file_format' in error.value.message_dict
 
@@ -77,12 +77,12 @@ def test_upload_cria_processamento_pendente(
     )
 
     assert response.status_code == 201
-    job = ProcessingJob.objects.get(pk=response.data['id'])
+    processamento = ProcessingJob.objects.get(pk=response.data['id'])
     assert response.data['status'] == ProcessingJob.Status.PENDING
-    assert job.original_name == filename
-    assert job.file_format == expected_format
-    assert job.status == ProcessingJob.Status.PENDING
-    assert (tmp_path / job.original_file.name).read_bytes() == content
+    assert processamento.original_name == filename
+    assert processamento.file_format == expected_format
+    assert processamento.status == ProcessingJob.Status.PENDING
+    assert (tmp_path / processamento.original_file.name).read_bytes() == content
 
 
 @pytest.mark.django_db
@@ -267,17 +267,17 @@ def test_executa_processamento_e_salva_resultado(tmp_path, settings):
         'clientes.csv',
         b'nome,email\nAna,ana@example.com\nBia,\n',
     )
-    job = ProcessingJob.objects.create(
+    processamento = ProcessingJob.objects.create(
         original_file=arquivo,
         original_name=arquivo.name,
         file_format=ProcessingJob.FileFormat.CSV,
     )
 
-    executar_processamento(job)
-    job.refresh_from_db()
+    executar_processamento(processamento)
+    processamento.refresh_from_db()
 
-    assert job.status == ProcessingJob.Status.COMPLETED
-    assert job.result == {
+    assert processamento.status == ProcessingJob.Status.COMPLETED
+    assert processamento.result == {
         'total': 2,
         'validos': 1,
         'invalidos': 1,
@@ -285,7 +285,7 @@ def test_executa_processamento_e_salva_resultado(tmp_path, settings):
             {'registro': 2, 'campos_invalidos': ['email']},
         ],
     }
-    assert job.error_message == ''
+    assert processamento.error_message == ''
 
 
 @pytest.mark.django_db
@@ -295,15 +295,15 @@ def test_salva_falha_quando_csv_nao_tem_colunas_obrigatorias(tmp_path, settings)
         'clientes.csv',
         b'nome,telefone\nAna,123\n'
     )
-    job = ProcessingJob.objects.create(
+    processamento = ProcessingJob.objects.create(
         original_file=arquivo,
         original_name=arquivo.name,
         file_format=ProcessingJob.FileFormat.CSV,
     )
 
-    executar_processamento(job)
-    job.refresh_from_db()
+    executar_processamento(processamento)
+    processamento.refresh_from_db()
 
-    assert job.status == ProcessingJob.Status.FAILED
-    assert job.result is None
-    assert job.error_message == 'O CSV deve conter as colunas nome e email.'
+    assert processamento.status == ProcessingJob.Status.FAILED
+    assert processamento.result is None
+    assert processamento.error_message == 'O CSV deve conter as colunas nome e email.'

@@ -78,24 +78,24 @@ def processar_arquivo_clientes(arquivo, formato):
     return resumir_registros_clientes(registros)
 
 
-def executar_processamento(job):
-    job.status = ProcessingJob.Status.PROCESSING
-    job.save(update_fields=['status', 'updated_at'])
+def executar_processamento(processamento):
+    processamento.status = ProcessingJob.Status.PROCESSING
+    processamento.save(update_fields=['status', 'updated_at'])
 
     try:
-        with job.original_file.open('rb') as arquivo:
-            resultado = processar_arquivo_clientes(arquivo, job.file_format)
+        with processamento.original_file.open('rb') as arquivo:
+            resultado = processar_arquivo_clientes(arquivo, processamento.file_format)
 
     except ValueError as erro:
-        job.result = None
-        job.error_message = str(erro)
-        job.status = ProcessingJob.Status.FAILED
-        job.save(update_fields=['result', 'error_message', 'status', 'updated_at'])
-        return job
+        processamento.result = None
+        processamento.error_message = str(erro)
+        processamento.status = ProcessingJob.Status.FAILED
+        processamento.save(update_fields=['result', 'error_message', 'status', 'updated_at'])
+        return processamento
 
-    job.result = resultado
-    job.error_message = ''
-    job.status = ProcessingJob.Status.COMPLETED
-    job.save(update_fields=['result', 'error_message', 'status', 'updated_at'])
+    processamento.result = resultado
+    processamento.error_message = ''
+    processamento.status = ProcessingJob.Status.COMPLETED
+    processamento.save(update_fields=['result', 'error_message', 'status', 'updated_at'])
 
-    return job
+    return processamento
