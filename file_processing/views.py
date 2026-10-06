@@ -1,5 +1,6 @@
 from pathlib import Path
 
+from django.shortcuts import get_object_or_404
 from rest_framework import status
 from rest_framework.parsers import MultiPartParser
 from rest_framework.response import Response
@@ -28,3 +29,15 @@ class ProcessingJobUploadView(APIView):
             {'id': str(processamento.id), 'status': processamento.status},
             status=status.HTTP_201_CREATED
         )
+
+
+class ProcessingJobDetailView(APIView):
+    def get(self, request, pk):
+        processamento = get_object_or_404(ProcessingJob, pk=pk)
+
+        return Response({
+            'id': str(processamento.id),
+            'status': processamento.status,
+            'result': processamento.result,
+            'error_message': processamento.error_message,
+        })

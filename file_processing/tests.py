@@ -324,3 +324,39 @@ def test_salva_falha_quando_arquivo_armazenado_nao_existe(tmp_path, settings):
     assert processamento.status == ProcessingJob.Status.FAILED
     assert processamento.result is None
     assert processamento.error_message == 'Não foi possível acessar o arquivo armazenado.'
+
+
+@pytest.mark.django_db
+def test_consulta_processamento_pendente():
+    processamento = ProcessingJob.objects.create(
+        original_file='uploads/clientes.csv',
+        original_name='clientes.csv',
+        file_format=ProcessingJob.FileFormat.CSV
+    )
+
+    response = APIClient().get(
+        reverse(
+            'processing-job-detail',
+            kwargs={'pk': processamento.pk},
+        )
+    )
+
+    assert response.status_code == 200
+    assert response.data == {
+        'id': str(processamento.id),
+        'status': ProcessingJob.Status.PENDING,
+        'result': None,
+        'error_message': '',
+    }
+
+
+@pytest.mark.django_db
+def test_consulta_processamento_inexistente_retorna_404():
+    response = APIClient().get(
+        reverse(
+            'processing-job-detail',
+            kwargs={'pk': '00000000-0000-0000-0000-000000000000'},
+        )
+    )
+
+    assert response.status_code == 404

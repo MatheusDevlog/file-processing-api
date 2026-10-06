@@ -2,7 +2,7 @@
 
 API REST para receber arquivos CSV ou JSON, validar registros e disponibilizar o resultado do processamento.
 
-O upload de arquivos está disponível. Cada envio cria um `ProcessingJob` com estado `pending`. O processamento do conteúdo e a consulta do resultado ainda não foram implementados.
+O upload e a consulta por identificador estão disponíveis. Cada envio cria um `ProcessingJob` com estado `pending`. A lógica de processamento do conteúdo já existe, mas ainda não está ligada ao upload; portanto, o envio não processa o arquivo automaticamente.
 
 ## Tecnologias
 
@@ -54,6 +54,21 @@ Um envio aceito retorna `201 Created`:
 
 O identificador muda a cada envio. O arquivo é salvo em `media/uploads/`, e o registro do processamento fica no PostgreSQL. Arquivo ausente, vazio, com extensão não aceita ou acima do limite recebe `400 Bad Request`, sem criar o processamento. Para testar arquivo ausente no Bruno, selecione **No Body**.
 
+## Consulta de processamento
+
+Envie uma requisição `GET` para `http://127.0.0.1:8000/api/processamentos/<id>/`, substituindo `<id>` pelo identificador retornado no upload. Um processamento recém-criado retorna `200 OK`:
+
+```json
+{
+  "id": "efeb1ff5-6d41-4b10-a948-cdd4f263c6e1",
+  "status": "pending",
+  "result": null,
+  "error_message": ""
+}
+```
+
+A consulta mostra o estado, o resultado e a mensagem de erro registrados no banco. Um identificador inexistente retorna `404 Not Found`. O processamento ainda não é iniciado pelo endpoint de upload.
+
 ## Testes
 
 Com a venv ativada, o PostgreSQL iniciado e as variáveis do `.env` carregadas, execute:
@@ -62,4 +77,4 @@ Com a venv ativada, o PostgreSQL iniciado e as variáveis do `.env` carregadas, 
 python -m pytest -q
 ```
 
-Os testes cobrem o modelo, uploads CSV e JSON e a rejeição de extensão inválida, arquivo acima do limite, ausente ou vazio.
+Os testes cobrem o modelo, uploads CSV e JSON, rejeições de arquivos inválidos, a lógica de processamento isolada e a consulta por identificador existente ou inexistente.
