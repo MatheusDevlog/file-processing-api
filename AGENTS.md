@@ -10,17 +10,17 @@
 ## Arquitetura e contrato
 
 - A aplicação usa Python, Django 5.2, Django REST Framework e PostgreSQL. `compose.yaml` inicia somente o banco; a API e os testes executam no Python local da `.venv`. `config/settings.py` lê variáveis de ambiente e configura o armazenamento local em `media/`.
-- `config/urls.py` inclui `file_processing/urls.py`. A rota `POST /api/processamentos/` chega à view em `file_processing/views.py`, que usa `MultiPartParser` para receber o formulário com o arquivo.
+- `config/urls.py` inclui `file_processing/urls.py`. A rota `POST /api/processamentos/` chega à view de upload em `file_processing/views.py`, que usa `MultiPartParser` para receber o formulário com o arquivo. A rota `GET /api/processamentos/<uuid:pk>/` consulta um processamento pelo identificador.
 - `file_processing/serializers.py` exige o campo `file`, aceita apenas nomes terminados em `.csv` ou `.json` e limita o arquivo a 1 MiB. O campo também rejeita arquivos vazios. A verificação da extensão não confirma o conteúdo ou o tipo real do arquivo.
 - A view salva o arquivo em `media/uploads/` e cria no PostgreSQL um `ProcessingJob` com estado `pending`; responde `201` com `id` e `status`. `file_processing/models.py` define o UUID, os dados do arquivo, os estados `pending`, `processing`, `completed` e `failed`, o resultado JSON e a mensagem de erro. Mudanças nesse esquema exigem migration em `file_processing/migrations/`.
-- `file_processing/processing.py` contém a validação de campos obrigatórios e funções isoladas de leitura de CSV e JSON. Essas funções ainda não estão ligadas ao upload. O fluxo que processa os registros, altera o estado do job e permite consultar o resultado ainda não existe; não o apresente como funcionalidade pronta.
+- `file_processing/processing.py` valida e lê CSV/JSON, resume registros e contém uma função que atualiza o estado e persiste resultado ou erro. A lógica funciona isoladamente, mas ainda não é acionada pelo upload. A consulta por ID devolve os valores já gravados; não apresente o processamento automático como funcionalidade pronta.
 
 ## Convenções de implementação
 
-- Prefira recursos existentes do Django e do DRF antes de acrescentar abstrações ou dependências. Mantenha a validação da entrada no serializer, a coordenação da requisição na view e os dados persistidos no model. Coloque a lógica de processamento em funções próprias quando for implementada.
+- Prefira recursos existentes do Django e do DRF antes de acrescentar abstrações ou dependências. Mantenha a validação da entrada no serializer, a coordenação da requisição na view, os dados persistidos no model e a lógica de processamento em funções próprias.
 - Mantenha o MVP pequeno. Celery e Redis não fazem parte da implementação atual.
 - Crie migrations quando o esquema dos models mudar, não apenas por alterações em views, serializers ou funções de processamento. Revise os arquivos gerados antes de aplicá-los.
-- Em código novo do projeto, prefira nomes claros em português para funções, variáveis, parâmetros e testes. Preserve nomes exigidos por Python, Django e DRF e os campos da API. Use aspas simples por padrão em novos trechos Python; preserve o estilo dos arquivos gerados.
+- Use inglês claro e consistente nos identificadores próprios do código Python: funções, variáveis, parâmetros, classes e testes. Para instâncias de `ProcessingJob`, prefira `processing_job`. Preserve nomes exigidos por Python, Django e DRF. Mantenha em português as mensagens voltadas aos usuários brasileiros e a documentação. Preserve as rotas e as chaves de entrada e saída já definidas no contrato da API, independentemente do idioma; não renomeie campos do model ou do banco apenas por estilo. Use aspas simples por padrão em novos trechos Python; preserve o estilo dos arquivos gerados.
 - Atualize o README quando o contrato HTTP, a configuração ou a forma real de executar o projeto mudar.
 
 ## Segurança e dados locais

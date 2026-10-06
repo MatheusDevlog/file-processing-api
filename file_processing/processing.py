@@ -5,102 +5,102 @@ from io import StringIO
 from file_processing.models import ProcessingJob
 
 
-def validar_registro_cliente(registro):
-    campos_invalidos = []
+def validate_customer_record(record):
+    invalid_fields = []
 
-    for campo in ('nome', 'email'):
-        valor = registro.get(campo)
+    for field in ('nome', 'email'):
+        value = record.get(field)
 
-        if not isinstance(valor, str) or not valor.strip():
-            campos_invalidos.append(campo)
+        if not isinstance(value, str) or not value.strip():
+            invalid_fields.append(field)
 
-    return campos_invalidos
+    return invalid_fields
 
 
-def ler_registros_csv(arquivo):
-    arquivo.seek(0)
-    conteudo = arquivo.read().decode('utf-8-sig')
-    leitor = csv.DictReader(StringIO(conteudo, newline=''))
-    colunas = leitor.fieldnames or []
-    if 'nome' not in colunas or 'email' not in colunas:
+def read_csv_records(file):
+    file.seek(0)
+    content = file.read().decode('utf-8-sig')
+    reader = csv.DictReader(StringIO(content, newline=''))
+    columns = reader.fieldnames or []
+    if 'nome' not in columns or 'email' not in columns:
         raise ValueError('O CSV deve conter as colunas nome e email.')
-    return list(leitor)
+    return list(reader)
 
 
-def ler_registros_json(arquivo):
-    arquivo.seek(0)
-    conteudo = arquivo.read().decode('utf-8-sig')
-    registros = json.loads(conteudo)
+def read_json_records(file):
+    file.seek(0)
+    content = file.read().decode('utf-8-sig')
+    records = json.loads(content)
 
-    if not isinstance(registros, list):
+    if not isinstance(records, list):
         raise ValueError('O JSON deve conter uma lista de registros.')
 
-    for registro in registros:
-        if not isinstance(registro, dict):
+    for record in records:
+        if not isinstance(record, dict):
             raise ValueError('Cada registro do JSON deve ser um objeto.')
 
-    return registros
+    return records
 
 
-def resumir_registros_clientes(registros):
-    erros = []
+def summarize_customer_records(records):
+    errors = []
 
-    for numero, registro in enumerate(registros, start=1):
-        campos_invalidos = validar_registro_cliente(registro)
+    for record_number, record in enumerate(records, start=1):
+        invalid_fields = validate_customer_record(record)
 
-        if campos_invalidos:
-            erros.append({
-                'registro': numero,
-                'campos_invalidos': campos_invalidos,
+        if invalid_fields:
+            errors.append({
+                'registro': record_number,
+                'campos_invalidos': invalid_fields,
             })
 
-    total = len(registros)
-    invalidos = len(erros)
+    total_count = len(records)
+    invalid_count = len(errors)
 
     return {
-        'total': total,
-        'validos': total - invalidos,
-        'invalidos': invalidos,
-        'erros': erros,
+        'total': total_count,
+        'validos': total_count - invalid_count,
+        'invalidos': invalid_count,
+        'erros': errors,
     }
 
 
-def processar_arquivo_clientes(arquivo, formato):
-    if formato == 'csv':
-        registros = ler_registros_csv(arquivo)
+def process_customer_file(file, file_format):
+    if file_format == 'csv':
+        records = read_csv_records(file)
 
-    elif formato == 'json':
-        registros = ler_registros_json(arquivo)
+    elif file_format == 'json':
+        records = read_json_records(file)
 
     else:
         raise ValueError('Formato de arquivo não suportado.')
 
-    return resumir_registros_clientes(registros)
+    return summarize_customer_records(records)
 
 
-def executar_processamento(processamento):
-    processamento.status = ProcessingJob.Status.PROCESSING
-    processamento.save(update_fields=['status', 'updated_at'])
+def run_processing_job(processing_job):
+    processing_job.status = ProcessingJob.Status.PROCESSING
+    processing_job.save(update_fields=['status', 'updated_at'])
 
     try:
-        with processamento.original_file.open('rb') as arquivo:
-            resultado = processar_arquivo_clientes(arquivo, processamento.file_format)
+        with processing_job.original_file.open('rb') as file:
+            result = process_customer_file(file, processing_job.file_format)
 
-    except (ValueError, OSError) as erro:
-        if isinstance(erro, OSError):
-            mensagem = 'Não foi possível acessar o arquivo armazenado.'
+    except (ValueError, OSError) as error:
+        if isinstance(error, OSError):
+            message = 'Não foi possível acessar o arquivo armazenado.'
         else:
-            mensagem = str(erro)
+            message = str(error)
 
-        processamento.result = None
-        processamento.error_message = mensagem
-        processamento.status = ProcessingJob.Status.FAILED
-        processamento.save(update_fields=['result', 'error_message', 'status', 'updated_at'])
-        return processamento
+        processing_job.result = None
+        processing_job.error_message = message
+        processing_job.status = ProcessingJob.Status.FAILED
+        processing_job.save(update_fields=['result', 'error_message', 'status', 'updated_at'])
+        return processing_job
 
-    processamento.result = resultado
-    processamento.error_message = ''
-    processamento.status = ProcessingJob.Status.COMPLETED
-    processamento.save(update_fields=['result', 'error_message', 'status', 'updated_at'])
+    processing_job.result = result
+    processing_job.error_message = ''
+    processing_job.status = ProcessingJob.Status.COMPLETED
+    processing_job.save(update_fields=['result', 'error_message', 'status', 'updated_at'])
 
-    return processamento
+    return processing_job

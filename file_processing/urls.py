@@ -1,9 +1,9 @@
 from django.urls import path
 
 from file_processing.views import (
-    ProcessingJobUploadView,
     ProcessingJobDetailView,
-) 
+    ProcessingJobUploadView,
+)
 
 
 urlpatterns = [

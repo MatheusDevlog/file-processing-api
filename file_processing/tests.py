@@ -1,47 +1,48 @@
-import pytest
-
 from io import BytesIO
-from file_processing.models import ProcessingJob
-from file_processing.processing import (
-    executar_processamento,
-    ler_registros_csv,
-    ler_registros_json,
-    processar_arquivo_clientes,
-    resumir_registros_clientes,
-    validar_registro_cliente,
-)
+
+import pytest
 from django.core.exceptions import ValidationError
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.urls import reverse
 from rest_framework.test import APIClient
 
+from file_processing.models import ProcessingJob
+from file_processing.processing import (
+    process_customer_file,
+    read_csv_records,
+    read_json_records,
+    run_processing_job,
+    summarize_customer_records,
+    validate_customer_record,
+)
+
 
 @pytest.mark.django_db
-def test_cria_processamento_pendente():
-    processamento = ProcessingJob.objects.create(
+def test_creates_pending_processing_job():
+    processing_job = ProcessingJob.objects.create(
         original_file='uploads/clientes.csv',
         original_name='clientes.csv',
         file_format=ProcessingJob.FileFormat.CSV,
     )
 
-    processamento_salvo = ProcessingJob.objects.get(pk=processamento.pk)
+    saved_processing_job = ProcessingJob.objects.get(pk=processing_job.pk)
 
-    assert processamento_salvo.status == ProcessingJob.Status.PENDING
-    assert processamento_salvo.original_name == 'clientes.csv'
-    assert processamento_salvo.result is None
-    assert processamento_salvo.error_message == ''
+    assert saved_processing_job.status == ProcessingJob.Status.PENDING
+    assert saved_processing_job.original_name == 'clientes.csv'
+    assert saved_processing_job.result is None
+    assert saved_processing_job.error_message == ''
 
 
 @pytest.mark.django_db
-def test_rejeita_formato_invalido():
-    processamento = ProcessingJob(
+def test_rejects_invalid_file_format():
+    processing_job = ProcessingJob(
         original_file='uploads/clientes.txt',
         original_name='clientes.txt',
         file_format='txt',
     )
 
     with pytest.raises(ValidationError) as error:
-        processamento.full_clean()
+        processing_job.full_clean()
 
     assert 'file_format' in error.value.message_dict
 
@@ -61,10 +62,8 @@ def test_rejeita_formato_invalido():
         ),
     ],
 )
-
-
 @pytest.mark.django_db
-def test_upload_cria_processamento_pendente(
+def test_upload_creates_pending_processing_job(
     tmp_path, settings, filename, content, expected_format
 ):
     settings.MEDIA_ROOT = tmp_path
@@ -77,16 +76,16 @@ def test_upload_cria_processamento_pendente(
     )
 
     assert response.status_code == 201
-    processamento = ProcessingJob.objects.get(pk=response.data['id'])
+    processing_job = ProcessingJob.objects.get(pk=response.data['id'])
     assert response.data['status'] == ProcessingJob.Status.PENDING
-    assert processamento.original_name == filename
-    assert processamento.file_format == expected_format
-    assert processamento.status == ProcessingJob.Status.PENDING
-    assert (tmp_path / processamento.original_file.name).read_bytes() == content
+    assert processing_job.original_name == filename
+    assert processing_job.file_format == expected_format
+    assert processing_job.status == ProcessingJob.Status.PENDING
+    assert (tmp_path / processing_job.original_file.name).read_bytes() == content
 
 
 @pytest.mark.django_db
-def test_upload_rejeita_extensao_invalida(tmp_path, settings):
+def test_upload_rejects_invalid_extension(tmp_path, settings):
     settings.MEDIA_ROOT = tmp_path
     uploaded_file = SimpleUploadedFile('clientes.txt', b'conteudo de exemplo')
 
@@ -103,7 +102,7 @@ def test_upload_rejeita_extensao_invalida(tmp_path, settings):
 
 
 @pytest.mark.django_db
-def test_upload_rejeita_arquivo_acima_do_limite(tmp_path, settings):
+def test_upload_rejects_oversized_file(tmp_path, settings):
     settings.MEDIA_ROOT = tmp_path
     content = b'a' * (1024 * 1024 + 1)
     uploaded_file = SimpleUploadedFile('clientes.csv', content)
@@ -120,16 +119,16 @@ def test_upload_rejeita_arquivo_acima_do_limite(tmp_path, settings):
     assert list(tmp_path.iterdir()) == []
 
 
-@pytest.mark.parametrize('case', ['ausente', 'vazio'])
+@pytest.mark.parametrize('case', ['missing', 'empty'])
 @pytest.mark.django_db
-def test_upload_rejeita_arquivo_ausente_ou_vazio(tmp_path, settings, case):
+def test_upload_rejects_missing_or_empty_file(tmp_path, settings, case):
     settings.MEDIA_ROOT = tmp_path
     data = {}
 
-    if case == 'vazio':
+    if case == 'empty':
         data['file'] = SimpleUploadedFile('clientes.csv', b'')
 
-    
+
     response = APIClient().post(
         reverse('processing-job-upload'),
         data,
@@ -143,7 +142,7 @@ def test_upload_rejeita_arquivo_ausente_ou_vazio(tmp_path, settings, case):
 
 
 @pytest.mark.parametrize(
-    'registro, campos_esperados',
+    'record, expected_fields',
     [
         ({'nome': 'Ana', 'email': 'ana@example.com'}, []),
         ({'nome': ' ', 'email': 'ana@example.com'}, ['nome']),
@@ -152,71 +151,71 @@ def test_upload_rejeita_arquivo_ausente_ou_vazio(tmp_path, settings, case):
         ({'nome': 42, 'email': None}, ['nome', 'email']),
     ],
 )
-def test_valida_campos_obrigatorios_do_cliente(registro, campos_esperados):
-    assert validar_registro_cliente(registro) == campos_esperados
+def test_validates_required_customer_fields(record, expected_fields):
+    assert validate_customer_record(record) == expected_fields
 
 
-def test_le_registros_csv():
-    arquivo = BytesIO(
+def test_reads_csv_records():
+    file = BytesIO(
         b'nome,email\n'
         b'Ana,ana@example.com\n'
         b'Bia,bia@example.com\n'
     )
 
-    registros = ler_registros_csv(arquivo)
+    records = read_csv_records(file)
 
-    assert registros == [
+    assert records == [
         {'nome': 'Ana', 'email': 'ana@example.com'},
         {'nome': 'Bia', 'email': 'bia@example.com'},
     ]
 
 
 @pytest.mark.parametrize(
-    'conteudo',
+    'content',
     [
         b'nome,telefone\nAna,123\n',
         b'\n',
     ],
 )
-def test_rejeita_csv_sem_colunas_obrigatorias(conteudo):
-    arquivo = BytesIO(conteudo)
+def test_rejects_csv_without_required_columns(content):
+    file = BytesIO(content)
 
     with pytest.raises(ValueError, match='CSV deve conter as colunas nome e email.'):
-        ler_registros_csv(arquivo)
+        read_csv_records(file)
 
 
-def test_le_registros_json():
-    arquivo = BytesIO(b'[{"nome": "Ana", "email": "ana@example.com"}]')
+def test_reads_json_records():
+    file = BytesIO(b'[{"nome": "Ana", "email": "ana@example.com"}]')
 
-    registros = ler_registros_json(arquivo)
+    records = read_json_records(file)
 
-    assert registros == [{'nome': 'Ana', 'email': 'ana@example.com'}]
+    assert records == [{'nome': 'Ana', 'email': 'ana@example.com'}]
 
 
 @pytest.mark.parametrize(
-    'conteudo, mensagem',
+    'content, message',
     [
         (b'{"nome": "Ana"}', 'lista de registros'),
         (b'[{"nome": "Ana"}, "Bia"]', 'deve ser um objeto'),
     ],
 )
-def test_rejeita_json_com_estrutura_invalida(conteudo, mensagem):
-    arquivo = BytesIO(conteudo)
+def test_rejects_json_with_invalid_structure(content, message):
+    file = BytesIO(content)
 
-    with pytest.raises(ValueError, match=mensagem):
-        ler_registros_json(arquivo)
+    with pytest.raises(ValueError, match=message):
+        read_json_records(file)
 
 
-def test_resume_registros_validos_e_invalidos():
-    registros = [
+def test_summarizes_valid_and_invalid_records():
+    records = [
         {'nome': 'Ana', 'email': 'ana@example.com'},
         {'nome': ' ', 'email': 'bia@example.com'},
         {'nome': '', 'email': ''},
     ]
 
-    resumo = resumir_registros_clientes(registros)
+    summary = summarize_customer_records(records)
 
-    assert resumo == {
+    assert summary == {
         'total': 3,
         'validos': 1,
         'invalidos': 2,
@@ -228,7 +227,7 @@ def test_resume_registros_validos_e_invalidos():
 
 
 @pytest.mark.parametrize(
-    'formato, conteudo',
+    'file_format, content',
     [
         ('csv', b'nome,email\nAna,ana@example.com\nBia,\n'),
         (
@@ -238,12 +237,12 @@ def test_resume_registros_validos_e_invalidos():
         ),
     ],
 )
-def test_processa_arquivos_clientes(formato, conteudo):
-    arquivo = BytesIO(conteudo)
+def test_processes_customer_files(file_format, content):
+    file = BytesIO(content)
 
-    resumo = processar_arquivo_clientes(arquivo, formato)
+    summary = process_customer_file(file, file_format)
 
-    assert resumo == {
+    assert summary == {
         'total': 2,
         'validos': 1,
         'invalidos': 1,
@@ -253,31 +252,31 @@ def test_processa_arquivos_clientes(formato, conteudo):
     }
 
 
-def test_rejeita_formato_de_arquivo_nao_suportado():
-    arquivo = BytesIO(b'conteudo')
+def test_rejects_unsupported_file_format():
+    file = BytesIO(b'conteudo')
 
     with pytest.raises(ValueError, match='Formato de arquivo não suportado'):
-        processar_arquivo_clientes(arquivo, 'txt')
+        process_customer_file(file, 'txt')
 
 
 @pytest.mark.django_db
-def test_executa_processamento_e_salva_resultado(tmp_path, settings):
+def test_runs_processing_job_and_saves_result(tmp_path, settings):
     settings.MEDIA_ROOT = tmp_path
-    arquivo = SimpleUploadedFile(
+    file = SimpleUploadedFile(
         'clientes.csv',
         b'nome,email\nAna,ana@example.com\nBia,\n',
     )
-    processamento = ProcessingJob.objects.create(
-        original_file=arquivo,
-        original_name=arquivo.name,
+    processing_job = ProcessingJob.objects.create(
+        original_file=file,
+        original_name=file.name,
         file_format=ProcessingJob.FileFormat.CSV,
     )
 
-    executar_processamento(processamento)
-    processamento.refresh_from_db()
+    run_processing_job(processing_job)
+    processing_job.refresh_from_db()
 
-    assert processamento.status == ProcessingJob.Status.COMPLETED
-    assert processamento.result == {
+    assert processing_job.status == ProcessingJob.Status.COMPLETED
+    assert processing_job.result == {
         'total': 2,
         'validos': 1,
         'invalidos': 1,
@@ -285,65 +284,65 @@ def test_executa_processamento_e_salva_resultado(tmp_path, settings):
             {'registro': 2, 'campos_invalidos': ['email']},
         ],
     }
-    assert processamento.error_message == ''
+    assert processing_job.error_message == ''
 
 
 @pytest.mark.django_db
-def test_salva_falha_quando_csv_nao_tem_colunas_obrigatorias(tmp_path, settings):
+def test_saves_failure_when_csv_lacks_required_columns(tmp_path, settings):
     settings.MEDIA_ROOT = tmp_path
-    arquivo = SimpleUploadedFile(
+    file = SimpleUploadedFile(
         'clientes.csv',
         b'nome,telefone\nAna,123\n'
     )
-    processamento = ProcessingJob.objects.create(
-        original_file=arquivo,
-        original_name=arquivo.name,
+    processing_job = ProcessingJob.objects.create(
+        original_file=file,
+        original_name=file.name,
         file_format=ProcessingJob.FileFormat.CSV,
     )
 
-    executar_processamento(processamento)
-    processamento.refresh_from_db()
+    run_processing_job(processing_job)
+    processing_job.refresh_from_db()
 
-    assert processamento.status == ProcessingJob.Status.FAILED
-    assert processamento.result is None
-    assert processamento.error_message == 'O CSV deve conter as colunas nome e email.'
+    assert processing_job.status == ProcessingJob.Status.FAILED
+    assert processing_job.result is None
+    assert processing_job.error_message == 'O CSV deve conter as colunas nome e email.'
 
 
 @pytest.mark.django_db
-def test_salva_falha_quando_arquivo_armazenado_nao_existe(tmp_path, settings):
+def test_saves_failure_when_stored_file_is_missing(tmp_path, settings):
     settings.MEDIA_ROOT = tmp_path
-    processamento = ProcessingJob.objects.create(
+    processing_job = ProcessingJob.objects.create(
         original_file='uploads/inexistente.csv',
         original_name='inexistente.csv',
         file_format=ProcessingJob.FileFormat.CSV,
     )
 
-    executar_processamento(processamento)
-    processamento.refresh_from_db()
+    run_processing_job(processing_job)
+    processing_job.refresh_from_db()
 
-    assert processamento.status == ProcessingJob.Status.FAILED
-    assert processamento.result is None
-    assert processamento.error_message == 'Não foi possível acessar o arquivo armazenado.'
+    assert processing_job.status == ProcessingJob.Status.FAILED
+    assert processing_job.result is None
+    assert processing_job.error_message == 'Não foi possível acessar o arquivo armazenado.'
 
 
 @pytest.mark.django_db
-def test_consulta_processamento_pendente():
-    processamento = ProcessingJob.objects.create(
+def test_gets_pending_processing_job():
+    processing_job = ProcessingJob.objects.create(
         original_file='uploads/clientes.csv',
         original_name='clientes.csv',
-        file_format=ProcessingJob.FileFormat.CSV
+        file_format=ProcessingJob.FileFormat.CSV,
     )
 
     response = APIClient().get(
         reverse(
             'processing-job-detail',
-            kwargs={'pk': processamento.pk},
+            kwargs={'pk': processing_job.pk},
         )
     )
 
     assert response.status_code == 200
     assert response.data == {
-        'id': str(processamento.id),
+        'id': str(processing_job.id),
         'status': ProcessingJob.Status.PENDING,
         'result': None,
         'error_message': '',
@@ -351,7 +350,7 @@ def test_consulta_processamento_pendente():
 
 
 @pytest.mark.django_db
-def test_consulta_processamento_inexistente_retorna_404():
+def test_returns_404_for_missing_processing_job():
     response = APIClient().get(
         reverse(
             'processing-job-detail',
