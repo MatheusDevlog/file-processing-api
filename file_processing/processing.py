@@ -86,9 +86,14 @@ def executar_processamento(processamento):
         with processamento.original_file.open('rb') as arquivo:
             resultado = processar_arquivo_clientes(arquivo, processamento.file_format)
 
-    except ValueError as erro:
+    except (ValueError, OSError) as erro:
+        if isinstance(erro, OSError):
+            mensagem = 'Não foi possível acessar o arquivo armazenado.'
+        else:
+            mensagem = str(erro)
+
         processamento.result = None
-        processamento.error_message = str(erro)
+        processamento.error_message = mensagem
         processamento.status = ProcessingJob.Status.FAILED
         processamento.save(update_fields=['result', 'error_message', 'status', 'updated_at'])
         return processamento

@@ -307,3 +307,20 @@ def test_salva_falha_quando_csv_nao_tem_colunas_obrigatorias(tmp_path, settings)
     assert processamento.status == ProcessingJob.Status.FAILED
     assert processamento.result is None
     assert processamento.error_message == 'O CSV deve conter as colunas nome e email.'
+
+
+@pytest.mark.django_db
+def test_salva_falha_quando_arquivo_armazenado_nao_existe(tmp_path, settings):
+    settings.MEDIA_ROOT = tmp_path
+    processamento = ProcessingJob.objects.create(
+        original_file='uploads/inexistente.csv',
+        original_name='inexistente.csv',
+        file_format=ProcessingJob.FileFormat.CSV,
+    )
+
+    executar_processamento(processamento)
+    processamento.refresh_from_db()
+
+    assert processamento.status == ProcessingJob.Status.FAILED
+    assert processamento.result is None
+    assert processamento.error_message == 'Não foi possível acessar o arquivo armazenado.'
