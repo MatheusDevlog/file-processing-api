@@ -2,7 +2,7 @@
 
 ## Fontes e escopo
 
-- Este repositório contém um MVP em desenvolvimento. Consulte `README.md` para o contrato público e os comandos de execução; confira o código antes de propor mudanças.
+- Este repositório contém um MVP concluído. Consulte `README.md` para o contrato público e os comandos de execução; confira o código antes de propor mudanças.
 - Quando existirem, consulte `docs/CONTEXTO_DESENVOLVIMENTO.md` para preferências privadas de colaboração e `docs/ESTADO_FILE_PROCESSING.md` para o estado recente. Esses documentos não fazem parte do repositório público e não devem ser copiados para commits ou PRs.
 - Inspecione o código e o estado atual do Git antes de presumir que uma funcionalidade, teste, branch ou entrega já existe.
 - Mantenha mudanças pequenas e relacionadas ao pedido. Preserve o comportamento existente fora do escopo da alteração.
