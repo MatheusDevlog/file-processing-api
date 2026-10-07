@@ -128,7 +128,6 @@ def test_upload_rejects_missing_or_empty_file(tmp_path, settings, case):
     if case == 'empty':
         data['file'] = SimpleUploadedFile('clientes.csv', b'')
 
-
     response = APIClient().post(
         reverse('processing-job-upload'),
         data,
@@ -359,3 +358,121 @@ def test_returns_404_for_missing_processing_job():
     )
 
     assert response.status_code == 404
+
+
+@pytest.mark.django_db
+def test_upload_process_and_get_result(tmp_path, settings):
+    settings.MEDIA_ROOT = tmp_path
+    uploaded_file = SimpleUploadedFile(
+        'clientes.csv',
+        b'nome,email\nAna,ana@example.com\nBia,\n',
+    )
+    client = APIClient()
+
+    upload_response = client.post(
+        reverse('processing-job-upload'),
+        {'file': uploaded_file},
+        format='multipart',
+    )
+    assert upload_response.status_code == 201
+    processing_id = upload_response.data['id']
+
+    processing_response = client.post(
+        reverse('processing-job-process', kwargs={'pk': processing_id}),
+    )
+    detail_response = client.get(
+        reverse('processing-job-detail', kwargs={'pk': processing_id}),
+    )
+
+    assert processing_response.status_code == 200
+    assert processing_response.data == {
+        'id': processing_id,
+        'status': ProcessingJob.Status.COMPLETED,
+    }
+    assert detail_response.status_code == 200
+    assert detail_response.data['result'] == {
+        'total': 2,
+        'validos': 1,
+        'invalidos': 1,
+        'erros': [
+            {'registro': 2, 'campos_invalidos': ['email']},
+        ],
+    }
+
+
+@pytest.mark.django_db
+def test_upload_process_and_get_failure(tmp_path, settings):
+    settings.MEDIA_ROOT = tmp_path
+    uploaded_file = SimpleUploadedFile(
+        'clientes.csv',
+        b'nome,telefone\nAna,123\n'
+    )
+    client = APIClient()
+
+    upload_response = client.post(
+        reverse('processing-job-upload'),
+        {'file': uploaded_file},
+        format='multipart',
+    )
+    assert upload_response.status_code == 201
+    processing_id = upload_response.data['id']
+
+    processing_response = client.post(
+        reverse('processing-job-process', kwargs={'pk': processing_id}),
+    )
+    detail_response = client.get(
+        reverse('processing-job-detail', kwargs={'pk': processing_id}),
+    )
+
+    assert processing_response.status_code == 200
+    assert processing_response.data == {
+        'id': processing_id,
+        'status': ProcessingJob.Status.FAILED,
+    }
+    assert detail_response.status_code == 200
+    assert detail_response.data == {
+        'id': processing_id,
+        'status': ProcessingJob.Status.FAILED,
+        'result': None,
+        'error_message': 'O CSV deve conter as colunas nome e email.',
+    }
+
+
+@pytest.mark.django_db
+def test_processing_missing_job_returns_404():
+    response = APIClient().post(
+        reverse(
+            'processing-job-process',
+            kwargs={'pk': '00000000-0000-0000-0000-000000000000'},
+        ),
+    )
+
+    assert response.status_code == 404
+
+
+@pytest.mark.django_db
+def test_rejects_reprocessing_completed_job(tmp_path, settings):
+    settings.MEDIA_ROOT = tmp_path
+    saved_result = {
+        'total': 1,
+        'validos': 1,
+        'invalidos': 0,
+        'erros': []
+    }
+    processing_job = ProcessingJob.objects.create(
+        original_file='uploads/inexistente.csv',
+        original_name='inexistente.csv',
+        file_format=ProcessingJob.FileFormat.CSV,
+        status=ProcessingJob.Status.COMPLETED,
+        result=saved_result,
+    )
+
+    response = APIClient().post(
+        reverse('processing-job-process', kwargs={'pk': processing_job.pk}),
+    )
+    processing_job.refresh_from_db()
+
+    assert response.status_code == 409
+    assert response.data == {'detail': 'Este processamento já foi iniciado.'}
+    assert processing_job.status == ProcessingJob.Status.COMPLETED
+    assert processing_job.result == saved_result

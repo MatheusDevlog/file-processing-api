@@ -7,6 +7,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from file_processing.models import ProcessingJob
+from file_processing.processing import run_processing_job
 from file_processing.serializers import ProcessingJobUploadSerializer
 
 
@@ -41,4 +42,22 @@ class ProcessingJobDetailView(APIView):
             'status': processing_job.status,
             'result': processing_job.result,
             'error_message': processing_job.error_message,
+        })
+
+
+class ProcessingJobProcessView(APIView):
+    def post(self, request, pk):
+        processing_job = get_object_or_404(ProcessingJob, pk=pk)
+
+        if processing_job.status != ProcessingJob.Status.PENDING:
+            return Response(
+                {'detail': 'Este processamento já foi iniciado.'},
+                status=status.HTTP_409_CONFLICT,
+            )
+
+        run_processing_job(processing_job)
+
+        return Response({
+            'id': str(processing_job.id),
+            'status': processing_job.status,
         })
