@@ -82,7 +82,7 @@ Envie uma requisição `GET` para `http://127.0.0.1:8000/api/processamentos/<id>
 }
 ```
 
-A consulta mostra o estado, o resultado e a mensagem de erro registrados no banco. Depois de um processamento concluído, `result` contém `total`, `validos`, `invalidos` e `erros`; cada erro informa o número do registro e os campos inválidos. Registros com campos ausentes são contados como inválidos sem mudar o estado `completed`. Se o processamento falhar, `result` é `null` e `error_message` descreve a falha. Um identificador inexistente retorna `404 Not Found`. O upload não inicia o processamento automaticamente.
+A consulta mostra o estado, o resultado e a mensagem de erro registrados no banco. Depois de um processamento concluído, `result` contém `total`, `validos`, `invalidos` e `erros`; cada erro informa o número do registro e os campos inválidos. Registros com campos ausentes são contados como inválidos sem mudar o estado `completed`. Se o processamento falhar, `result` é `null` e `error_message` descreve a falha. JSON malformado e arquivos fora de UTF-8 geram mensagens em português. Um identificador inexistente retorna `404 Not Found`. O upload não inicia o processamento automaticamente.
 
 ## Testes
 
@@ -92,4 +92,4 @@ Com a venv ativada, o PostgreSQL iniciado e as variáveis do `.env` carregadas, 
 python -m pytest -q
 ```
 
-Os testes cobrem o modelo, uploads CSV e JSON, rejeições de arquivos inválidos, a lógica de processamento isolada e o fluxo HTTP completo: upload, processamento com sucesso ou falha, consulta, ID inexistente e tentativa repetida.
+Os testes cobrem o modelo, uploads CSV e JSON, rejeições de arquivos inválidos, a lógica de processamento isolada e o fluxo HTTP completo: upload, processamento com sucesso ou falha, mensagens para conteúdo malformado, consulta, ID inexistente e tentativa repetida.

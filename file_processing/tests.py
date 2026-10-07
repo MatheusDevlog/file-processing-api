@@ -476,3 +476,40 @@ def test_rejects_reprocessing_completed_job(tmp_path, settings):
     assert response.data == {'detail': 'Este processamento já foi iniciado.'}
     assert processing_job.status == ProcessingJob.Status.COMPLETED
     assert processing_job.result == saved_result
+
+
+@pytest.mark.parametrize(
+    'filename, content, expected_message',
+    [
+        ('clientes.json', b'{', 'O JSON está malformado.'),
+        ('clientes.csv', b'\xff', 'O arquivo deve estar codificado em UTF-8.'),
+    ],
+)
+@pytest.mark.django_db
+def test_process_reports_input_errors_in_portuguese(
+    tmp_path, settings, filename, content, expected_message
+):
+    settings.MEDIA_ROOT = tmp_path
+    uploaded_file = SimpleUploadedFile(filename, content)
+    client = APIClient()
+
+    upload_response = client.post(
+        reverse('processing-job-upload'),
+        {'file': uploaded_file},
+        format='multipart',
+    )
+    assert upload_response.status_code == 201
+    processing_id = upload_response.data['id']
+
+    processing_response = client.post(
+        reverse('processing-job-process', kwargs={'pk': processing_id}),
+    )
+    detail_response = client.get(
+        reverse('processing-job-detail', kwargs={'pk': processing_id}),
+    )
+
+    assert processing_response.status_code == 200
+    assert processing_response.data['status'] == ProcessingJob.Status.FAILED
+    assert detail_response.status_code == 200
+    assert detail_response.data['result'] is None
+    assert detail_response.data['error_message'] == expected_message

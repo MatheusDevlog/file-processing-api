@@ -19,7 +19,11 @@ def validate_customer_record(record):
 
 def read_csv_records(file):
     file.seek(0)
-    content = file.read().decode('utf-8-sig')
+    try:
+        content = file.read().decode('utf-8-sig')
+    except UnicodeDecodeError as error:
+        raise ValueError(
+            'O arquivo deve estar codificado em UTF-8.') from error
     reader = csv.DictReader(StringIO(content, newline=''))
     columns = reader.fieldnames or []
     if 'nome' not in columns or 'email' not in columns:
@@ -29,8 +33,15 @@ def read_csv_records(file):
 
 def read_json_records(file):
     file.seek(0)
-    content = file.read().decode('utf-8-sig')
-    records = json.loads(content)
+    try:
+        content = file.read().decode('utf-8-sig')
+    except UnicodeDecodeError as error:
+        raise ValueError(
+            'O arquivo deve estar codificado em UTF-8.') from error
+    try:
+        records = json.loads(content)
+    except json.JSONDecodeError as error:
+        raise ValueError('O JSON está malformado.') from error
 
     if not isinstance(records, list):
         raise ValueError('O JSON deve conter uma lista de registros.')
@@ -95,12 +106,14 @@ def run_processing_job(processing_job):
         processing_job.result = None
         processing_job.error_message = message
         processing_job.status = ProcessingJob.Status.FAILED
-        processing_job.save(update_fields=['result', 'error_message', 'status', 'updated_at'])
+        processing_job.save(
+            update_fields=['result', 'error_message', 'status', 'updated_at'])
         return processing_job
 
     processing_job.result = result
     processing_job.error_message = ''
     processing_job.status = ProcessingJob.Status.COMPLETED
-    processing_job.save(update_fields=['result', 'error_message', 'status', 'updated_at'])
+    processing_job.save(
+        update_fields=['result', 'error_message', 'status', 'updated_at'])
 
     return processing_job
